@@ -675,9 +675,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.18"
+version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0956a43b323ac1afaffc053ed5c4b7c1f1800bacd1683c353aabbb752515dd3"
+checksum = "b97f376d85a664d5837dbae44bf546e6477a679ff6610010f17276f686d867e8"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -685,9 +685,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.18"
+version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d72166dd41634086d5803a47eb71ae740e61d84709c36f3c34110173db3961b"
+checksum = "19bc80abd44e4bed93ca373a0704ccbd1b710dc5749406201bb018272808dc54"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1984,7 +1984,7 @@ dependencies = [
  "anyhow",
  "base64 0.21.7",
  "bytecount",
- "clap 4.5.18",
+ "clap 4.5.20",
  "fancy-regex",
  "fraction",
  "getrandom",
@@ -4176,12 +4176,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "text-generation-backend-llamacpp"
+version = "2.3.2-dev0"
+dependencies = [
+ "clap 4.5.20",
+ "cmake",
+ "cxx",
+ "cxx-build",
+ "hf-hub",
+ "image",
+ "metrics",
+ "metrics-exporter-prometheus",
+ "pkg-config",
+ "serde_json",
+ "text-generation-router",
+ "thiserror",
+ "tokenizers 0.20.0",
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
 name = "text-generation-backends-trtllm"
 version = "2.3.2-dev0"
 dependencies = [
  "async-stream",
  "async-trait",
- "clap 4.5.18",
+ "clap 4.5.20",
  "cmake",
  "cxx",
  "cxx-build",
@@ -4203,7 +4224,7 @@ name = "text-generation-benchmark"
 version = "2.3.2-dev0"
 dependencies = [
  "average",
- "clap 4.5.18",
+ "clap 4.5.20",
  "float-ord",
  "hf-hub",
  "ratatui",
@@ -4240,7 +4261,7 @@ dependencies = [
 name = "text-generation-launcher"
 version = "2.3.2-dev0"
 dependencies = [
- "clap 4.5.18",
+ "clap 4.5.20",
  "ctrlc",
  "float_eq",
  "hf-hub",
@@ -4266,7 +4287,7 @@ dependencies = [
  "axum 0.7.7",
  "axum-tracing-opentelemetry",
  "base64 0.22.1",
- "clap 4.5.18",
+ "clap 4.5.20",
  "csv",
  "futures",
  "futures-util",
@@ -4315,7 +4336,7 @@ dependencies = [
  "axum 0.7.7",
  "axum-tracing-opentelemetry",
  "base64 0.22.1",
- "clap 4.5.18",
+ "clap 4.5.20",
  "futures",
  "futures-util",
  "grpc-metadata",
@@ -4364,7 +4385,7 @@ dependencies = [
  "axum 0.7.7",
  "axum-tracing-opentelemetry",
  "base64 0.22.1",
- "clap 4.5.18",
+ "clap 4.5.20",
  "criterion",
  "futures",
  "futures-util",

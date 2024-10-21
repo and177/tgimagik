@@ -1,292 +1,299 @@
-<div align="center">
+[![Build Status](https://github.com/mozilla/sccache/workflows/ci/badge.svg)](https://github.com/mozilla/sccache/actions?query=workflow%3Aci)
+[![Crates.io](https://img.shields.io/crates/v/sccache.svg)](https://crates.io/crates/sccache)
+[![Matrix](https://img.shields.io/matrix/sccache:mozilla.org)](https://chat.mozilla.org/#/room/#sccache:mozilla.org)
+![Crates.io](https://img.shields.io/crates/l/sccache)
+[![dependency status](https://deps.rs/repo/github/mozilla/sccache/status.svg)](https://deps.rs/repo/github/mozilla/sccache)
 
-<a href="https://www.youtube.com/watch?v=jlMAX2Oaht0">
-  <img width=560 width=315 alt="Making TGI deployment optimal" src="https://huggingface.co/datasets/Narsil/tgi_assets/resolve/main/thumbnail.png">
-</a>
-
-# Text Generation Inference
-
-<a href="https://github.com/huggingface/text-generation-inference">
-  <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/huggingface/text-generation-inference?style=social">
-</a>
-<a href="https://huggingface.github.io/text-generation-inference">
-  <img alt="Swagger API documentation" src="https://img.shields.io/badge/API-Swagger-informational">
-</a>
-
-A Rust, Python and gRPC server for text generation inference. Used in production at [Hugging Face](https://huggingface.co)
-to power Hugging Chat, the Inference API and Inference Endpoint.
-
-</div>
-
-## Table of contents
-
-  - [Get Started](#get-started)
-    - [Docker](#docker)
-    - [API documentation](#api-documentation)
-    - [Using a private or gated model](#using-a-private-or-gated-model)
-    - [A note on Shared Memory (shm)](#a-note-on-shared-memory-shm)
-    - [Distributed Tracing](#distributed-tracing)
-    - [Architecture](#architecture)
-    - [Local install](#local-install)
-  - [Optimized architectures](#optimized-architectures)
-  - [Run locally](#run-locally)
-    - [Run](#run)
-    - [Quantization](#quantization)
-  - [Develop](#develop)
-  - [Testing](#testing)
-
-Text Generation Inference (TGI) is a toolkit for deploying and serving Large Language Models (LLMs). TGI enables high-performance text generation for the most popular open-source LLMs, including Llama, Falcon, StarCoder, BLOOM, GPT-NeoX, and [more](https://huggingface.co/docs/text-generation-inference/supported_models). TGI implements many features, such as:
-
-- Simple launcher to serve most popular LLMs
-- Production ready (distributed tracing with Open Telemetry, Prometheus metrics)
-- Tensor Parallelism for faster inference on multiple GPUs
-- Token streaming using Server-Sent Events (SSE)
-- Continuous batching of incoming requests for increased total throughput
-- [Messages API](https://huggingface.co/docs/text-generation-inference/en/messages_api) compatible with Open AI Chat Completion API
-- Optimized transformers code for inference using [Flash Attention](https://github.com/HazyResearch/flash-attention) and [Paged Attention](https://github.com/vllm-project/vllm) on the most popular architectures
-- Quantization with :
-  - [bitsandbytes](https://github.com/TimDettmers/bitsandbytes)
-  - [GPT-Q](https://arxiv.org/abs/2210.17323)
-  - [EETQ](https://github.com/NetEase-FuXi/EETQ)
-  - [AWQ](https://github.com/casper-hansen/AutoAWQ)
-  - [Marlin](https://github.com/IST-DASLab/marlin)
-  - [fp8](https://developer.nvidia.com/blog/nvidia-arm-and-intel-publish-fp8-specification-for-standardization-as-an-interchange-format-for-ai/)
-- [Safetensors](https://github.com/huggingface/safetensors) weight loading
-- Watermarking with [A Watermark for Large Language Models](https://arxiv.org/abs/2301.10226)
-- Logits warper (temperature scaling, top-p, top-k, repetition penalty, more details see [transformers.LogitsProcessor](https://huggingface.co/docs/transformers/internal/generation_utils#transformers.LogitsProcessor))
-- Stop sequences
-- Log probabilities
-- [Speculation](https://huggingface.co/docs/text-generation-inference/conceptual/speculation) ~2x latency
-- [Guidance/JSON](https://huggingface.co/docs/text-generation-inference/conceptual/guidance). Specify output format to speed up inference and make sure the output is valid according to some specs..
-- Custom Prompt Generation: Easily generate text by providing custom prompts to guide the model's output
-- Fine-tuning Support: Utilize fine-tuned models for specific tasks to achieve higher accuracy and performance
-
-### Hardware support
-
-- [Nvidia](https://github.com/huggingface/text-generation-inference/pkgs/container/text-generation-inference)
-- [AMD](https://github.com/huggingface/text-generation-inference/pkgs/container/text-generation-inference) (-rocm)
-- [Inferentia](https://github.com/huggingface/optimum-neuron/tree/main/text-generation-inference)
-- [Intel GPU](https://github.com/huggingface/text-generation-inference/pull/1475)
-- [Gaudi](https://github.com/huggingface/tgi-gaudi)
-- [Google TPU](https://huggingface.co/docs/optimum-tpu/howto/serving)
+[![CodeCov](https://codecov.io/gh/mozilla/sccache/branch/master/graph/badge.svg)](https://codecov.io/gh/mozilla/sccache)
 
 
-## Get Started
+sccache - Shared Compilation Cache
+==================================
 
-### Docker
+sccache is a [ccache](https://ccache.dev/)-like compiler caching tool. It is used as a compiler wrapper and avoids compilation when possible, storing cached results either on [local disk](docs/Local.md) or in one of [several cloud storage backends](#storage-options).
 
-For a detailed starting guide, please see the [Quick Tour](https://huggingface.co/docs/text-generation-inference/quicktour). The easiest way of getting started is using the official Docker container:
+sccache includes support for caching the compilation of C/C++ code, [Rust](docs/Rust.md), as well as NVIDIA's CUDA using [nvcc](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html), and [clang](https://llvm.org/docs/CompileCudaWithLLVM.html).
 
-```shell
-model=HuggingFaceH4/zephyr-7b-beta
-# share a volume with the Docker container to avoid downloading weights every run
-volume=$PWD/data
+sccache also provides [icecream](https://github.com/icecc/icecream)-style distributed compilation (automatic packaging of local toolchains) for all supported compilers (including Rust). The distributed compilation system includes several security features that icecream lacks such as authentication, transport layer encryption, and sandboxed compiler execution on build servers. See [the distributed quickstart](docs/DistributedQuickstart.md) guide for more information.
 
-docker run --gpus all --shm-size 1g -p 8080:80 -v $volume:/data \
-    ghcr.io/huggingface/text-generation-inference:2.3.1 --model-id $model
-```
+sccache is also available as a [GitHub Actions](https://github.com/marketplace/actions/sccache-action) to facilitate the deployment using GitHub Actions cache.
 
-And then you can make requests like
+---
+
+Table of Contents (ToC)
+=======================
+
+* [Installation](#installation)
+* [Usage](#usage)
+* [Build Requirements](#build-requirements)
+* [Build](#build)
+* [Separating caches between invocations](#separating-caches-between-invocations)
+* [Overwriting the cache](#overwriting-the-cache)
+* [Debugging](#debugging)
+* [Interaction with GNU `make` jobserver](#interaction-with-gnu-make-jobserver)
+* [Known Caveats](#known-caveats)
+* [Storage Options](#storage-options)
+  * [Local](docs/Local.md)
+  * [S3](docs/S3.md)
+  * [R2](docs/S3.md#R2)
+  * [Redis](docs/Redis.md)
+  * [Memcached](docs/Memcached.md)
+  * [Google Cloud Storage](docs/Gcs.md)
+  * [Azure](docs/Azure.md)
+  * [GitHub Actions](docs/GHA.md)
+  * [WebDAV (Ccache/Bazel/Gradle compatible)](docs/Webdav.md)
+  * [Alibaba OSS](docs/OSS.md)
+
+---
+
+## Installation
+
+There are prebuilt x86-64 binaries available for Windows, Linux (a portable binary compiled against musl), and macOS [on the releases page](https://github.com/mozilla/sccache/releases/latest). Several package managers also include sccache packages, you can install the latest release from source using cargo, or build directly from a source checkout.
+
+### macOS
+
+On macOS sccache can be installed via [Homebrew](https://brew.sh/):
 
 ```bash
-curl 127.0.0.1:8080/generate_stream \
-    -X POST \
-    -d '{"inputs":"What is Deep Learning?","parameters":{"max_new_tokens":20}}' \
-    -H 'Content-Type: application/json'
+brew install sccache
 ```
 
-You can also use [TGI's Messages API](https://huggingface.co/docs/text-generation-inference/en/messages_api) to obtain Open AI Chat Completion API compatible responses.
+or via [MacPorts](https://www.macports.org/):
 
 ```bash
-curl localhost:3000/v1/chat/completions \
-    -X POST \
-    -d '{
-  "model": "tgi",
-  "messages": [
-    {
-      "role": "system",
-      "content": "You are a helpful assistant."
-    },
-    {
-      "role": "user",
-      "content": "What is deep learning?"
-    }
-  ],
-  "stream": true,
-  "max_tokens": 20
-}' \
-    -H 'Content-Type: application/json'
+sudo port install sccache
 ```
 
-**Note:** To use NVIDIA GPUs, you need to install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). We also recommend using NVIDIA drivers with CUDA version 12.2 or higher. For running the Docker container on a machine with no GPUs or CUDA support, it is enough to remove the `--gpus all` flag and add `--disable-custom-kernels`, please note CPU is not the intended platform for this project, so performance might be subpar.
+### Windows
 
-**Note:** TGI supports AMD Instinct MI210 and MI250 GPUs. Details can be found in the [Supported Hardware documentation](https://huggingface.co/docs/text-generation-inference/supported_models#supported-hardware). To use AMD GPUs, please use `docker run --device /dev/kfd --device /dev/dri --shm-size 1g -p 8080:80 -v $volume:/data ghcr.io/huggingface/text-generation-inference:2.3.1-rocm --model-id $model` instead of the command above.
+On Windows, sccache can be installed via [scoop](https://scoop.sh/):
 
-To see all options to serve your models (in the [code](https://github.com/huggingface/text-generation-inference/blob/main/launcher/src/main.rs) or in the cli):
 ```
-text-generation-launcher --help
-```
-
-### API documentation
-
-You can consult the OpenAPI documentation of the `text-generation-inference` REST API using the `/docs` route.
-The Swagger UI is also available at: [https://huggingface.github.io/text-generation-inference](https://huggingface.github.io/text-generation-inference).
-
-### Using a private or gated model
-
-You have the option to utilize the `HF_TOKEN` environment variable for configuring the token employed by
-`text-generation-inference`. This allows you to gain access to protected resources.
-
-For example, if you want to serve the gated Llama V2 model variants:
-
-1. Go to https://huggingface.co/settings/tokens
-2. Copy your cli READ token
-3. Export `HF_TOKEN=<your cli READ token>`
-
-or with Docker:
-
-```shell
-model=meta-llama/Meta-Llama-3.1-8B-Instruct
-volume=$PWD/data # share a volume with the Docker container to avoid downloading weights every run
-token=<your cli READ token>
-
-docker run --gpus all --shm-size 1g -e HF_TOKEN=$token -p 8080:80 -v $volume:/data ghcr.io/huggingface/text-generation-inference:2.3.1 --model-id $model
+scoop install sccache
 ```
 
-### A note on Shared Memory (shm)
+### Via cargo
 
-[`NCCL`](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/index.html) is a communication framework used by
-`PyTorch` to do distributed training/inference. `text-generation-inference` make
-use of `NCCL` to enable Tensor Parallelism to dramatically speed up inference for large language models.
+If you have a Rust toolchain installed you can install sccache using cargo. **Note that this will compile sccache from source which is fairly resource-intensive. For CI purposes you should use prebuilt binary packages.**
 
-In order to share data between the different devices of a `NCCL` group, `NCCL` might fall back to using the host memory if
-peer-to-peer using NVLink or PCI is not possible.
 
-To allow the container to use 1G of Shared Memory and support SHM sharing, we add `--shm-size 1g` on the above command.
-
-If you are running `text-generation-inference` inside `Kubernetes`. You can also add Shared Memory to the container by
-creating a volume with:
-
-```yaml
-- name: shm
-  emptyDir:
-   medium: Memory
-   sizeLimit: 1Gi
+```bash
+cargo install sccache --locked
 ```
 
-and mounting it to `/dev/shm`.
+---
 
-Finally, you can also disable SHM sharing by using the `NCCL_SHM_DISABLE=1` environment variable. However, note that
-this will impact performance.
+Usage
+-----
 
-### Distributed Tracing
+Running sccache is like running ccache: prefix your compilation commands with it, like so:
 
-`text-generation-inference` is instrumented with distributed tracing using OpenTelemetry. You can use this feature
-by setting the address to an OTLP collector with the `--otlp-endpoint` argument. The default service name can be
-overridden with the `--otlp-service-name` argument
-
-### Architecture
-
-![TGI architecture](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/TGI.png)
-
-Detailed blogpost by Adyen on TGI inner workings: [LLM inference at scale with TGI (Martin Iglesias Goyanes - Adyen, 2024)](https://www.adyen.com/knowledge-hub/llm-inference-at-scale-with-tgi)
-
-### Local install
-
-You can also opt to install `text-generation-inference` locally.
-
-First [install Rust](https://rustup.rs/) and create a Python virtual environment with at least
-Python 3.9, e.g. using `conda`:
-
-```shell
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-conda create -n text-generation-inference python=3.11
-conda activate text-generation-inference
+```bash
+sccache gcc -o foo.o -c foo.c
 ```
 
-You may also need to install Protoc.
+If you want to use sccache for caching Rust builds you can define `build.rustc-wrapper` in the
+[cargo configuration file](https://doc.rust-lang.org/cargo/reference/config.html).  For example, you can set it globally
+in `$HOME/.cargo/config.toml` by adding:
 
-On Linux:
-
-```shell
-PROTOC_ZIP=protoc-21.12-linux-x86_64.zip
-curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v21.12/$PROTOC_ZIP
-sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
-sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
-rm -f $PROTOC_ZIP
+```toml
+[build]
+rustc-wrapper = "/path/to/sccache"
 ```
 
-On MacOS, using Homebrew:
+Note that you need to use cargo 1.40 or newer for this to work.
 
-```shell
-brew install protobuf
+Alternatively you can use the environment variable `RUSTC_WRAPPER`:
+
+```bash
+export RUSTC_WRAPPER=/path/to/sccache
+cargo build
 ```
 
-Then run:
+sccache supports gcc, clang, MSVC, rustc, [NVCC](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html), [NVC++](https://docs.nvidia.com/hpc-sdk//compilers/hpc-compilers-user-guide/index.html), and [Wind River's diab compiler](https://www.windriver.com/products/development-tools/#diab_compiler). Both gcc and msvc support Response Files, read more about their implementation [here](docs/ResponseFiles.md).
 
-```shell
-BUILD_EXTENSIONS=True make install # Install repository and HF/transformer fork with CUDA kernels
-text-generation-launcher --model-id mistralai/Mistral-7B-Instruct-v0.2
+If you don't [specify otherwise](#storage-options), sccache will use a local disk cache.
+
+sccache works using a client-server model, where the server runs locally on the same machine as the client. The client-server model allows the server to be more efficient by keeping some state in memory. The sccache command will spawn a server process if one is not already running, or you can run `sccache --start-server` to start the background server process without performing any compilation.
+
+You can run `sccache --stop-server` to terminate the server. It will also terminate after (by default) 10 minutes of inactivity.
+
+Running `sccache --show-stats` will print a summary of cache statistics.
+
+Some notes about using `sccache` with [Jenkins](https://jenkins.io) are [here](docs/Jenkins.md).
+
+To use sccache with cmake, provide the following command line arguments to cmake 3.4 or newer:
+
+```
+-DCMAKE_C_COMPILER_LAUNCHER=sccache
+-DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 ```
 
-**Note:** on some machines, you may also need the OpenSSL libraries and gcc. On Linux machines, run:
+The process for using sccache with MSVC and cmake, depends on which version of cmake you're using. **For versions of cmake 3.24 and earlier**, to generate PDB files for debugging with MSVC, you can use the [`/Z7` option](https://docs.microsoft.com/en-us/cpp/build/reference/z7-zi-zi-debug-information-format?view=msvc-160). Alternatively, the `/Zi` option together with `/Fd` can work if `/Fd` names a different PDB file name for each object file created. Note that CMake sets `/Zi` by default, so if you use CMake, you can use `/Z7` by adding code like this in your CMakeLists.txt:
 
-```shell
-sudo apt-get install libssl-dev gcc -y
+```cmake
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+  string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+  string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+  string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+  string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+endif()
 ```
 
-## Optimized architectures
+By default, sccache will fail your build if it fails to successfully communicate with its associated server. To have sccache instead gracefully failover to the local compiler without stopping, set the environment variable `SCCACHE_IGNORE_SERVER_IO_ERROR=1`.
 
-TGI works out of the box to serve optimized models for all modern models. They can be found in [this list](https://huggingface.co/docs/text-generation-inference/supported_models).
-
-Other architectures are supported on a best-effort basis using:
-
-`AutoModelForCausalLM.from_pretrained(<model>, device_map="auto")`
-
-or
-
-`AutoModelForSeq2SeqLM.from_pretrained(<model>, device_map="auto")`
-
-
-
-## Run locally
-
-### Run
-
-```shell
-text-generation-launcher --model-id mistralai/Mistral-7B-Instruct-v0.2
+**For versions of cmake 3.25 and later**, to compile with MSVC, you have to use the new `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT` option, meant to configure the `-Z7` flag.  Additionally, you must set the cmake policy number 0141 to the NEW setting:
+```cmake
+set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+cmake_policy(SET CMP0141 NEW)
 ```
 
-### Quantization
+Example configuration where we automatically look for `sccache` in the `PATH`:
+```cmake
+find_program(SCCACHE sccache REQUIRED)
 
-You can also run pre-quantized weights (AWQ, GPTQ, Marlin) or on-the-fly quantize weights with bitsandbytes, EETQ, fp8, to reduce the VRAM requirement:
-
-```shell
-text-generation-launcher --model-id mistralai/Mistral-7B-Instruct-v0.2 --quantize
+set(CMAKE_C_COMPILER_LAUNCHER ${SCCACHE})
+set(CMAKE_CXX_COMPILER_LAUNCHER ${SCCACHE})
+set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+cmake_policy(SET CMP0141 NEW)
 ```
 
-4bit quantization is available using the [NF4 and FP4 data types from bitsandbytes](https://arxiv.org/pdf/2305.14314.pdf). It can be enabled by providing `--quantize bitsandbytes-nf4` or `--quantize bitsandbytes-fp4` as a command line argument to `text-generation-launcher`.
+Alternatively, if configuring cmake with MSVC on the command line, assuming that sccache is on the default search path:
 
-Read more about quantization in the [Quantization documentation](https://huggingface.co/docs/text-generation-inference/en/conceptual/quantization).
-
-## Develop
-
-```shell
-make server-dev
-make router-dev
+```
+cmake -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded -DCMAKE_POLICY_CMP0141=NEW [...]
 ```
 
-## Testing
+And you can build code as usual without any additional flags in the command line, which is useful for IDEs.
 
-```shell
-# python
-make python-server-tests
-make python-client-tests
-# or both server and client tests
-make python-tests
-# rust cargo tests
-make rust-tests
-# integration tests
-make integration-tests
+
+---
+
+Build Requirements
+------------------
+
+sccache is a [Rust](https://www.rust-lang.org/) program. Building it requires `cargo` (and thus`rustc`). sccache currently requires **Rust 1.75.0**. We recommend you install Rust via [Rustup](https://rustup.rs/).
+
+Build
+-----
+
+If you are building sccache for non-development purposes make sure you use `cargo build --release` to get optimized binaries:
+
+```bash
+cargo build --release [--no-default-features --features=s3|redis|gcs|memcached|azure|gha|webdav|oss]
 ```
+
+The list of features can be found in the `Cargo.toml` file, `[features]` section.
+
+By default, `sccache` builds with support for all storage backends, but individual backends may be disabled by resetting the list of features and enabling all the other backends. Refer the [Cargo Documentation](http://doc.crates.io/manifest.html#the-features-section) for details on how to select features with Cargo.
+
+### Building portable binaries
+
+When building with the `dist-server` feature, `sccache` will depend on OpenSSL, which can be an annoyance if you want to distribute portable binaries. It is possible to statically link against OpenSSL using the `openssl/vendored` feature.
+
+#### Linux
+
+Build with `cargo` and use `ldd` to check that the resulting binary does not depend on OpenSSL anymore.
+
+#### macOS
+
+Build with `cargo` and use `otool -L` to check that the resulting binary does not depend on OpenSSL anymore.
+
+#### Windows
+
+On Windows, the binary might also depend on a few MSVC CRT DLLs that are not available on older Windows versions.
+
+It is possible to statically link against the CRT using a `.cargo/config.toml` file with the following contents.
+
+```toml
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-Ctarget-feature=+crt-static"]
+```
+
+Build with `cargo` and use `dumpbin /dependents` to check that the resulting binary does not depend on MSVC CRT DLLs anymore.
+
+When statically linking with OpenSSL, you will need Perl available in your `$PATH`.
+
+---
+
+Separating caches between invocations
+-------------------------------------
+
+In situations where several different compilation invocations
+should not reuse the cached results from each other,
+one can set `SCCACHE_C_CUSTOM_CACHE_BUSTER` to a unique value
+that'll be mixed into the hash.
+`MACOSX_DEPLOYMENT_TARGET` and `IPHONEOS_DEPLOYMENT_TARGET` variables
+already exhibit such reuse-suppression behaviour.
+There are currently no such variables for compiling Rust.
+
+---
+
+Overwriting the cache
+---------------------
+
+In situations where the cache contains broken build artifacts, it can be necessary to overwrite the contents in the cache. That can be achieved by setting the `SCCACHE_RECACHE` environment variable.
+
+---
+
+Debugging
+---------
+
+You can set the `SCCACHE_ERROR_LOG` environment variable to a path and set `SCCACHE_LOG` to get the server process to redirect its logging there (including the output of unhandled panics, since the server sets `RUST_BACKTRACE=1` internally).
+
+    SCCACHE_ERROR_LOG=/tmp/sccache_log.txt SCCACHE_LOG=debug sccache
+
+You can also set these environment variables for your build system, for example
+
+    SCCACHE_ERROR_LOG=/tmp/sccache_log.txt SCCACHE_LOG=debug cmake --build /path/to/cmake/build/directory
+
+Alternatively, if you are compiling locally, you can run the server manually in foreground mode by running `SCCACHE_START_SERVER=1 SCCACHE_NO_DAEMON=1 sccache`, and send logging to stderr by setting the [`SCCACHE_LOG` environment variable](https://docs.rs/env_logger/0.7.1/env_logger/#enabling-logging) for example. This method is not suitable for CI services because you need to compile in another shell at the same time.
+
+    SCCACHE_LOG=debug SCCACHE_START_SERVER=1 SCCACHE_NO_DAEMON=1 sccache
+
+---
+
+Interaction with GNU `make` jobserver
+-------------------------------------
+
+sccache provides support for a [GNU make jobserver](https://www.gnu.org/software/make/manual/html_node/Job-Slots.html). When the server is started from a process that provides a jobserver, sccache will use that jobserver and provide it to any processes it spawns. (If you are running sccache from a GNU make recipe, you will need to prefix the command with `+` to get this behavior.) If the sccache server is started without a jobserver present it will create its own with the number of slots equal to the number of available CPU cores.
+
+This is most useful when using sccache for Rust compilation, as rustc supports using a jobserver for parallel codegen, so this ensures that rustc will not overwhelm the system with codegen tasks. Cargo implements its own jobserver ([see the information on `NUM_JOBS` in the cargo documentation](https://doc.rust-lang.org/stable/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts)) for rustc to use, so using sccache for Rust compilation in cargo via `RUSTC_WRAPPER` should do the right thing automatically.
+
+---
+
+Known Caveats
+-------------
+
+### General
+
+* Absolute paths to files must match to get a cache hit. This means that even if you are using a shared cache, everyone will have to build at the same absolute path (i.e. not in `$HOME`) in order to benefit each other. In Rust this includes the source for third party crates which are stored in `$HOME/.cargo/registry/cache` by default.
+
+### Rust
+
+* Crates that invoke the system linker cannot be cached. This includes `bin`, `dylib`, `cdylib`, and `proc-macro` crates. You may be able to improve compilation time of large `bin` crates by converting them to a `lib` crate with a thin `bin` wrapper.
+* Incrementally compiled crates cannot be cached. By default, in the debug profile Cargo will use incremental compilation for workspace members and path dependencies. [You can disable incremental compilation.](https://doc.rust-lang.org/cargo/reference/profiles.html#incremental)
+
+[More details on Rust caveats](/docs/Rust.md)
+
+### Symbolic links
+
+* Symbolic links to sccache won't work. Use hardlinks: `ln sccache /usr/local/bin/cc`
+
+Storage Options
+---------------
+
+* [Local](docs/Local.md)
+* [S3](docs/S3.md)
+* [R2](docs/S3.md#R2)
+* [Redis](docs/Redis.md)
+* [Memcached](docs/Memcached.md)
+* [Google Cloud Storage](docs/Gcs.md)
+* [Azure](docs/Azure.md)
+* [GitHub Actions](docs/GHA.md)
+* [WebDAV (Ccache/Bazel/Gradle compatible)](docs/Webdav.md)
+* [Alibaba OSS](docs/OSS.md)
