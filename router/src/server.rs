@@ -7,6 +7,7 @@ use crate::kserve::{
     kerve_server_metadata, kserve_health_live, kserve_health_ready, kserve_model_infer,
     kserve_model_metadata, kserve_model_metadata_ready,
 };
+use crate::logging::trace_context_middleware;
 use crate::sagemaker::{
     sagemaker_compatibility, SagemakerRequest, SagemakerResponse, SagemakerStreamResponse,
     __path_sagemaker_compatibility,
@@ -62,6 +63,7 @@ use tokio::sync::oneshot;
 use tokio::time::Instant;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::{info_span, instrument, Instrument};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -127,6 +129,7 @@ pub(crate) async fn compat_generate(
     Extension(default_return_full_text): Extension<bool>,
     infer: Extension<Infer>,
     compute_type: Extension<ComputeType>,
+    context: Extension<Option<opentelemetry::Context>>,
     Json(mut req): Json<CompatGenerateRequest>,
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
     // default return_full_text given the pipeline_tag
@@ -136,11 +139,14 @@ pub(crate) async fn compat_generate(
 
     // switch on stream
     if req.stream {
-        Ok(generate_stream(infer, compute_type, Json(req.into()))
-            .await
-            .into_response())
+        Ok(
+            generate_stream(infer, compute_type, context, Json(req.into()))
+                .await
+                .into_response(),
+        )
     } else {
-        let (headers, Json(generation)) = generate(infer, compute_type, Json(req.into())).await?;
+        let (headers, Json(generation)) =
+            generate(infer, compute_type, context, Json(req.into())).await?;
         // wrap generation inside a Vec to match api-inference
         Ok((headers, Json(vec![generation])).into_response())
     }
@@ -265,9 +271,14 @@ seed,
 async fn generate(
     infer: Extension<Infer>,
     Extension(ComputeType(compute_type)): Extension<ComputeType>,
+    Extension(context): Extension<Option<opentelemetry::Context>>,
     Json(req): Json<GenerateRequest>,
 ) -> Result<(HeaderMap, Json<GenerateResponse>), (StatusCode, Json<ErrorResponse>)> {
     let span = tracing::Span::current();
+    if let Some(context) = context {
+        span.set_parent(context);
+    }
+
     generate_internal(infer, ComputeType(compute_type), Json(req), span).await
 }
 
@@ -461,12 +472,17 @@ seed,
 async fn generate_stream(
     Extension(infer): Extension<Infer>,
     Extension(compute_type): Extension<ComputeType>,
+    Extension(context): Extension<Option<opentelemetry::Context>>,
     Json(req): Json<GenerateRequest>,
 ) -> (
     HeaderMap,
     Sse<impl Stream<Item = Result<Event, Infallible>>>,
 ) {
     let span = tracing::Span::current();
+    if let Some(context) = context {
+        span.set_parent(context);
+    }
+
     let (headers, response_stream) =
         generate_stream_internal(infer, compute_type, Json(req), span).await;
 
@@ -696,9 +712,14 @@ pub(crate) async fn completions(
     Extension(infer): Extension<Infer>,
     Extension(compute_type): Extension<ComputeType>,
     Extension(info): Extension<Info>,
+    Extension(context): Extension<Option<opentelemetry::Context>>,
     Json(req): Json<CompletionRequest>,
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
     let span = tracing::Span::current();
+    if let Some(context) = context {
+        span.set_parent(context);
+    }
+
     metrics::counter!("tgi_request_count").increment(1);
 
     let CompletionRequest {
@@ -1220,9 +1241,14 @@ pub(crate) async fn chat_completions(
     Extension(infer): Extension<Infer>,
     Extension(compute_type): Extension<ComputeType>,
     Extension(info): Extension<Info>,
+    Extension(context): Extension<Option<opentelemetry::Context>>,
     Json(chat): Json<ChatRequest>,
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
     let span = tracing::Span::current();
+    if let Some(context) = context {
+        span.set_parent(context);
+    }
+
     metrics::counter!("tgi_request_count").increment(1);
     let ChatRequest {
         stream,
@@ -2376,6 +2402,7 @@ async fn start(
         .layer(Extension(compute_type))
         .layer(Extension(prom_handle.clone()))
         .layer(OtelAxumLayer::default())
+        .layer(axum::middleware::from_fn(trace_context_middleware))
         .layer(cors_layer);
 
     tracing::info!("Connected");
